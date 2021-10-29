@@ -178,3 +178,8 @@ func UpdateOCISpecForDevicesWithSpec(ociconfig *spec.Spec, devs []string, specs 
 
 	return nil
 }
+
+// LoadCDI loads CDI JSON file by id
+func LoadCDI(id string) (*cdispec.Spec, error) {
+	return loadCDIFile(filepath.Join(root, filepath.Base(fmt.Sprintf("%s.json", id))))
+}

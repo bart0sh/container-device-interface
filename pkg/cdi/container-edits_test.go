@@ -20,6 +20,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/container-orchestrated-devices/container-device-interface/specs-go"
 	cdi "github.com/container-orchestrated-devices/container-device-interface/specs-go"
 	oci "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/require"
@@ -470,6 +471,256 @@ func TestApplyContainerEdits(t *testing.T) {
 			err = edits.Apply(tc.spec)
 			require.NoError(t, err)
 			require.Equal(t, tc.result, tc.spec)
+		})
+	}
+}
+
+func TestAppend(t *testing.T) {
+	type testCase struct {
+		name   string
+		dst    *ContainerEdits
+		src    []*ContainerEdits
+		result *ContainerEdits
+	}
+	for _, tc := range []*testCase{
+		{
+			name: "merge nil into nil",
+			dst:  nil,
+			src: []*ContainerEdits{
+				nil,
+			},
+			result: nil,
+		},
+		{
+			name: "merge non-nil into nil",
+			dst:  nil,
+			src: []*ContainerEdits{
+				{
+					ContainerEdits: &specs.ContainerEdits{
+						Env: []string{
+							"var1=val1",
+						},
+					},
+				},
+			},
+			result: &ContainerEdits{
+				ContainerEdits: &specs.ContainerEdits{
+					Env: []string{
+						"var1=val1",
+					},
+				},
+			},
+		},
+		{
+			name: "merge nil into non-nil",
+			dst: &ContainerEdits{
+				ContainerEdits: &specs.ContainerEdits{
+					Env: []string{
+						"var1=val1",
+					},
+				},
+			},
+			src: []*ContainerEdits{
+				nil,
+			},
+			result: &ContainerEdits{
+				ContainerEdits: &specs.ContainerEdits{
+					Env: []string{
+						"var1=val1",
+					},
+				},
+			},
+		},
+		{
+			name: "merge multiple into non-nil",
+			dst: &ContainerEdits{
+				ContainerEdits: &specs.ContainerEdits{
+					Env: []string{
+						"var0=val0",
+					},
+				},
+			},
+			src: []*ContainerEdits{
+				{
+					ContainerEdits: &specs.ContainerEdits{
+						Env: []string{
+							"var1=val1",
+						},
+						DeviceNodes: []*specs.DeviceNode{
+							{
+								Path: "/dev/dev1",
+							},
+						},
+					},
+				},
+				{
+					ContainerEdits: &specs.ContainerEdits{
+						Env: []string{
+							"var2=val2",
+							"var3=val3",
+						},
+						DeviceNodes: []*specs.DeviceNode{
+							{
+								Path: "/dev/dev2",
+							},
+							{
+								Path: "/dev/dev3",
+							},
+						},
+					},
+				},
+				{
+					ContainerEdits: &specs.ContainerEdits{
+						Env: []string{
+							"var4=val4",
+						},
+						DeviceNodes: []*specs.DeviceNode{
+							{
+								Path: "/dev/dev4",
+							},
+						},
+					},
+				},
+			},
+			result: &ContainerEdits{
+				ContainerEdits: &specs.ContainerEdits{
+					Env: []string{
+						"var0=val0",
+						"var1=val1",
+						"var2=val2",
+						"var3=val3",
+						"var4=val4",
+					},
+					DeviceNodes: []*specs.DeviceNode{
+						{
+							Path: "/dev/dev1",
+						},
+						{
+							Path: "/dev/dev2",
+						},
+						{
+							Path: "/dev/dev3",
+						},
+						{
+							Path: "/dev/dev4",
+						},
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dst := tc.dst
+			for _, src := range tc.src {
+				dst = dst.Append(src)
+			}
+			require.Equal(t, tc.result, dst, "append container edits")
+		})
+	}
+}
+
+func TestOrderedMounts(t *testing.T) {
+	type testCase struct {
+		name   string
+		edits  *ContainerEdits
+		result []*specs.Mount
+	}
+	for _, tc := range []*testCase{
+		{
+			name:   "empty",
+			edits:  &ContainerEdits{},
+			result: nil,
+		},
+		{
+			name: "one entry",
+			edits: &ContainerEdits{
+				ContainerEdits: &specs.ContainerEdits{
+					Mounts: []*specs.Mount{
+						{
+							ContainerPath: "/a",
+						},
+					},
+				},
+			},
+			result: []*specs.Mount{
+				{
+					ContainerPath: "/a",
+				},
+			},
+		},
+		{
+			name: "two entries",
+			edits: &ContainerEdits{
+				ContainerEdits: &specs.ContainerEdits{
+					Mounts: []*specs.Mount{
+						{
+							ContainerPath: "/b/c/d",
+						},
+						{
+							ContainerPath: "/b/c",
+						},
+					},
+				},
+			},
+			result: []*specs.Mount{
+				{
+					ContainerPath: "/b/c",
+				},
+				{
+					ContainerPath: "/b/c/d",
+				},
+			},
+		},
+		{
+			name: "several entries",
+			edits: &ContainerEdits{
+				ContainerEdits: &specs.ContainerEdits{
+					Mounts: []*specs.Mount{
+						{
+							ContainerPath: "/b/c/d",
+						},
+						{
+							ContainerPath: "/b/c",
+						},
+						{
+							ContainerPath: "/a/b/c/d",
+						},
+						{
+							ContainerPath: "/a/b/c",
+						},
+						{
+							ContainerPath: "/a/b",
+						},
+						{
+							ContainerPath: "/a",
+						},
+					},
+				},
+			},
+			result: []*specs.Mount{
+				{
+					ContainerPath: "/a",
+				},
+				{
+					ContainerPath: "/a/b",
+				},
+				{
+					ContainerPath: "/b/c",
+				},
+				{
+					ContainerPath: "/a/b/c",
+				},
+				{
+					ContainerPath: "/b/c/d",
+				},
+				{
+					ContainerPath: "/a/b/c/d",
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.result, tc.edits.OrderedMounts(), "ordered mounts")
 		})
 	}
 }

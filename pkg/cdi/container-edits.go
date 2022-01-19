@@ -17,6 +17,9 @@
 package cdi
 
 import (
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -83,7 +86,7 @@ func (e *ContainerEdits) Apply(spec *oci.Spec) error {
 		specgen.AddDevice(d.ToOCI())
 		specgen.AddLinuxResourcesDevice(true, d.Type, &d.Major, &d.Minor, d.Permissions)
 	}
-	for _, m := range e.Mounts {
+	for _, m := range e.OrderedMounts() {
 		specgen.RemoveMount(m.ContainerPath)
 		specgen.AddMount(m.ToOCI())
 	}
@@ -139,6 +142,38 @@ func (e *ContainerEdits) Validate() error {
 	}
 
 	return nil
+}
+
+// Append other another edits into this one. Returns newly allocated
+// edits if called with a nil receiver (and non-nil edits to append).
+func (e *ContainerEdits) Append(o *ContainerEdits) *ContainerEdits {
+	if o == nil || o.ContainerEdits == nil {
+		return e
+	}
+	if e == nil {
+		e = &ContainerEdits{}
+	}
+	if e.ContainerEdits == nil {
+		e.ContainerEdits = &specs.ContainerEdits{}
+	}
+
+	e.Env = append(e.Env, o.Env...)
+	e.DeviceNodes = append(e.DeviceNodes, o.DeviceNodes...)
+	e.Hooks = append(e.Hooks, o.Hooks...)
+	e.Mounts = append(e.Mounts, o.Mounts...)
+
+	return e
+}
+
+// OrderedMounts returns the mounts from this edit in sorted order.
+func (e *ContainerEdits) OrderedMounts() []*specs.Mount {
+	if e == nil || e.ContainerEdits == nil || len(e.Mounts) == 0 {
+		return nil
+	}
+	mounts := make([]*specs.Mount, len(e.Mounts))
+	copy(mounts, e.Mounts)
+	sort.Sort(orderedMounts(mounts))
+	return mounts
 }
 
 // isEmpty returns true if these edits are empty. This is valid in a
@@ -215,6 +250,41 @@ func (m *Mount) Validate() error {
 		return errors.New("invalid mount, empty container path")
 	}
 	return nil
+}
+
+// orderedMounts defines how to sort a []*Mount slice.
+// This is the almost the same implementation sa used by CRI-O and Docker,
+// with a minor tweak for stable sorting order (easier to test):
+//   https://github.com/moby/moby/blob/17.05.x/daemon/volumes.go#L26
+type orderedMounts []*specs.Mount
+
+// Len returns the number of mounts. Used in sorting.
+func (m orderedMounts) Len() int {
+	return len(m)
+}
+
+// Less returns true if the number of parts (a/b/c would be 3 parts) in the
+// mount indexed by parameter 1 is less than that of the mount indexed by
+// parameter 2. Used in sorting.
+func (m orderedMounts) Less(i, j int) bool {
+	ip, jp := m.parts(i), m.parts(j)
+	if ip < jp {
+		return true
+	}
+	if jp < ip {
+		return false
+	}
+	return m[i].ContainerPath < m[j].ContainerPath
+}
+
+// Swap swaps two items in an array of mounts. Used in sorting
+func (m orderedMounts) Swap(i, j int) {
+	m[i], m[j] = m[j], m[i]
+}
+
+// parts returns the number of parts in the destination of a mount. Used in sorting.
+func (m orderedMounts) parts(i int) int {
+	return strings.Count(filepath.Clean(m[i].ContainerPath), string(os.PathSeparator))
 }
 
 // Ensure OCI Spec hooks are not nil so we can add hooks.

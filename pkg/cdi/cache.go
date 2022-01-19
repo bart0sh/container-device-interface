@@ -155,6 +155,7 @@ func (c *Cache) Refresh() error {
 func (c *Cache) InjectDevices(ociSpec *oci.Spec, devices ...string) ([]string, error) {
 	var (
 		unresolved []string
+		edits      = &ContainerEdits{}
 		specs      = map[*Spec]struct{}{}
 	)
 
@@ -173,14 +174,18 @@ func (c *Cache) InjectDevices(ociSpec *oci.Spec, devices ...string) ([]string, e
 		}
 		if _, ok := specs[d.GetSpec()]; !ok {
 			specs[d.GetSpec()] = struct{}{}
-			d.GetSpec().ApplyEdits(ociSpec)
+			edits.Append(d.GetSpec().edits())
 		}
-		d.ApplyEdits(ociSpec)
+		edits.Append(d.edits())
 	}
 
 	if unresolved != nil {
 		return unresolved, errors.Errorf("unresolvable CDI devices %s",
 			strings.Join(devices, ", "))
+	}
+
+	if err := edits.Apply(ociSpec); err != nil {
+		return nil, errors.Wrap(err, "failed to inject devices")
 	}
 
 	return nil, nil

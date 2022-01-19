@@ -561,6 +561,15 @@ devices:
 							Path: "/dev/vendor1-dev1",
 						},
 					},
+					Resources: &oci.LinuxResources{
+						Devices: []oci.LinuxDeviceCgroup{
+							{
+								Allow: true,
+								Major: int64ptr(0),
+								Minor: int64ptr(0),
+							},
+						},
+					},
 				},
 			},
 		},
@@ -624,6 +633,15 @@ devices:
 						},
 						{
 							Path: "/dev/vendor1-dev1",
+						},
+					},
+					Resources: &oci.LinuxResources{
+						Devices: []oci.LinuxDeviceCgroup{
+							{
+								Allow: true,
+								Major: int64ptr(0),
+								Minor: int64ptr(0),
+							},
 						},
 					},
 				},
@@ -740,6 +758,25 @@ devices:
 						},
 						{
 							Path: "/dev/vendor1-dev3",
+						},
+					},
+					Resources: &oci.LinuxResources{
+						Devices: []oci.LinuxDeviceCgroup{
+							{
+								Allow: true,
+								Major: int64ptr(0),
+								Minor: int64ptr(0),
+							},
+							{
+								Allow: true,
+								Major: int64ptr(0),
+								Minor: int64ptr(0),
+							},
+							{
+								Allow: true,
+								Major: int64ptr(0),
+								Minor: int64ptr(0),
+							},
 						},
 					},
 				},
@@ -1029,4 +1066,8 @@ func updateSpecDirs(t *testing.T, dir string, etc, run map[string]string) error 
 		}
 	}
 	return updateTestDir(t, dir, updates)
+}
+
+func int64ptr(v int64) *int64 {
+	return &v
 }

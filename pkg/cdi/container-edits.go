@@ -79,9 +79,12 @@ func (e *ContainerEdits) Apply(spec *oci.Spec) error {
 		specgen.AddMultipleProcessEnv(e.Env)
 	}
 	for _, d := range e.DeviceNodes {
+		specgen.RemoveDevice(d.Path)
 		specgen.AddDevice(d.ToOCI())
+		specgen.AddLinuxResourcesDevice(true, d.Type, &d.Major, &d.Minor, d.Permissions)
 	}
 	for _, m := range e.Mounts {
+		specgen.RemoveMount(m.ContainerPath)
 		specgen.AddMount(m.ToOCI())
 	}
 	for _, h := range e.Hooks {

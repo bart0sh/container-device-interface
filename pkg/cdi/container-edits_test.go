@@ -305,6 +305,15 @@ func TestApplyContainerEdits(t *testing.T) {
 							Path: "/dev/null",
 						},
 					},
+					Resources: &oci.LinuxResources{
+						Devices: []oci.LinuxDeviceCgroup{
+							{
+								Allow: true,
+								Major: int64ptr(0),
+								Minor: int64ptr(0),
+							},
+						},
+					},
 				},
 			},
 		},
@@ -333,6 +342,16 @@ func TestApplyContainerEdits(t *testing.T) {
 						{
 							Path: "/dev/null",
 							Type: "b",
+						},
+					},
+					Resources: &oci.LinuxResources{
+						Devices: []oci.LinuxDeviceCgroup{
+							{
+								Allow: true,
+								Type:  "b",
+								Major: int64ptr(0),
+								Minor: int64ptr(0),
+							},
 						},
 					},
 				},

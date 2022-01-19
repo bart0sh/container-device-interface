@@ -75,6 +75,15 @@ devices:
 							Path: "/dev/vendor1-dev1",
 						},
 					},
+					Resources: &oci.LinuxResources{
+						Devices: []oci.LinuxDeviceCgroup{
+							{
+								Allow: true,
+								Major: int64ptr(0),
+								Minor: int64ptr(0),
+							},
+						},
+					},
 				},
 			},
 		},
@@ -138,6 +147,15 @@ devices:
 						},
 						{
 							Path: "/dev/vendor1-dev1",
+						},
+					},
+					Resources: &oci.LinuxResources{
+						Devices: []oci.LinuxDeviceCgroup{
+							{
+								Allow: true,
+								Major: int64ptr(0),
+								Minor: int64ptr(0),
+							},
 						},
 					},
 				},
@@ -254,6 +272,25 @@ devices:
 						},
 						{
 							Path: "/dev/vendor1-dev3",
+						},
+					},
+					Resources: &oci.LinuxResources{
+						Devices: []oci.LinuxDeviceCgroup{
+							{
+								Allow: true,
+								Major: int64ptr(0),
+								Minor: int64ptr(0),
+							},
+							{
+								Allow: true,
+								Major: int64ptr(0),
+								Minor: int64ptr(0),
+							},
+							{
+								Allow: true,
+								Major: int64ptr(0),
+								Minor: int64ptr(0),
+							},
 						},
 					},
 				},

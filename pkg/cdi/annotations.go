@@ -52,6 +52,20 @@ func AnnotateInjection(annotations map[string]string, plugin string, devices []s
 	return annotations, nil
 }
 
+// ParsePodAnnotations is a temporary kludge to allow testing
+// annotations without a K8s DP. Will be removed from final PR.
+// XXX TODO remove this eventually...
+func ParsePodAnnotations(name string, annotations map[string]string) ([]string, error) {
+	prefix := name + "." + AnnotationPrefix
+	matching := map[string]string{}
+	for key, value := range annotations {
+		if strings.HasPrefix(key, prefix) {
+			matching[strings.TrimPrefix(key, name+".")] = value
+		}
+	}
+	return ParseAnnotations(matching)
+}
+
 // ParseAnnotations parses annotations for CDI device injection requests.
 // The devices from all such requests are collected into a slice which is
 // returned as the result. All devices are expected to be fully qualified

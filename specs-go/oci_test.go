@@ -70,6 +70,7 @@ func TestApplyEditsToOCISpec(t *testing.T) {
 					{
 						Source:      "/dev/vendorctl",
 						Destination: "/dev/vendorctl",
+						Type:        "bind",
 					},
 				},
 			},
@@ -257,6 +258,7 @@ func TestApplyEditsToOCISpec(t *testing.T) {
 					{
 						Source:      "/mnt/mount1",
 						Destination: "/mnt/mount1",
+						Type:        "bind",
 						Options:     []string{"noexec", "noatime"},
 					},
 				},

@@ -354,6 +354,7 @@ func TestApplyContainerEdits(t *testing.T) {
 					{
 						Source:      "/dev/host-vendorctl",
 						Destination: "/dev/cntr-vendorctl",
+						Type:        "bind",
 					},
 				},
 			},

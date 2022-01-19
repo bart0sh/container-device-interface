@@ -94,6 +94,7 @@ func (m *Mount) ToOCI() spec.Mount {
 	return spec.Mount{
 		Source:      m.HostPath,
 		Destination: m.ContainerPath,
+		Type:        "bind",
 		Options:     m.Options,
 	}
 }

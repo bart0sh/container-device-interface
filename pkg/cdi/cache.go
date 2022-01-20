@@ -153,11 +153,20 @@ func (c *Cache) Refresh() error {
 // returns any unresolvable devices and an error if injection fails for
 // any of the devices.
 func (c *Cache) InjectDevices(ociSpec *oci.Spec, devices ...string) ([]string, error) {
-	var (
-		unresolved []string
-		edits      = &ContainerEdits{}
-		specs      = map[*Spec]struct{}{}
-	)
+	unresolved, err := c.ResolveDevices(ociSpec, nil, devices)
+	return unresolved, err
+}
+
+// ResolveDevices injects the given qualified devices to an OCI Spec.
+// It is intended to be used by runtime implementations to update an
+// OCI Spec with a set of requested CDI devices. Unlike InjectDevices
+// which injects the data for the devices verbatim into the OCI Spec,
+// ResolveDevices allows passing the data first thru a set of caller-
+// provided functions which are free to modify the injected data.
+// ResolveDevices returns any unresolved devices and any errors that
+// occured during injection. On success it returns nil for both.
+func (c *Cache) ResolveDevices(ociSpec *oci.Spec, h *OciHandler, devices []string) ([]string, error) {
+	var unresolved []string
 
 	if ociSpec == nil {
 		return devices, errors.Errorf("can't inject devices, nil OCI Spec")
@@ -165,6 +174,9 @@ func (c *Cache) InjectDevices(ociSpec *oci.Spec, devices ...string) ([]string, e
 
 	c.Lock()
 	defer c.Unlock()
+
+	edits := &ContainerEdits{}
+	specs := map[*Spec]struct{}{}
 
 	for _, device := range devices {
 		d := c.devices[device]
@@ -184,7 +196,7 @@ func (c *Cache) InjectDevices(ociSpec *oci.Spec, devices ...string) ([]string, e
 			strings.Join(devices, ", "))
 	}
 
-	if err := edits.Apply(ociSpec); err != nil {
+	if err := edits.apply(ociSpec, nil); err != nil {
 		return nil, errors.Wrap(err, "failed to inject devices")
 	}
 

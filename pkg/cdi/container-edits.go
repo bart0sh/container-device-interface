@@ -73,22 +73,40 @@ func (e *ContainerEdits) Apply(spec *oci.Spec) error {
 	if spec == nil {
 		return errors.New("can't edit nil OCI Spec")
 	}
+	return e.apply(spec, nil)
+}
+
+func (e *ContainerEdits) apply(spec *oci.Spec, h *OciHandler) error {
 	if e == nil || e.ContainerEdits == nil {
 		return nil
 	}
-
 	specgen := ocigen.NewFromSpec(spec)
 	if len(e.Env) > 0 {
 		specgen.AddMultipleProcessEnv(e.Env)
 	}
 	for _, d := range e.DeviceNodes {
-		specgen.RemoveDevice(d.Path)
-		specgen.AddDevice(d.ToOCI())
-		specgen.AddLinuxResourcesDevice(true, d.Type, &d.Major, &d.Minor, d.Permissions)
+		dev := d.ToOCI()
+		res := oci.LinuxDeviceCgroup{
+			Allow:  true,
+			Type:   dev.Type,
+			Major:  &dev.Major,
+			Minor:  &dev.Minor,
+			Access: d.Permissions,
+		}
+		if err := h.linuxDevice(&dev, &res); err != nil {
+			return errors.Wrap(err, "failed to add device to OCI Spec")
+		}
+		specgen.RemoveDevice(dev.Path)
+		specgen.AddDevice(dev)
+		specgen.AddLinuxResourcesDevice(res.Allow, res.Type, res.Major, res.Minor, res.Access)
 	}
 	for _, m := range e.OrderedMounts() {
-		specgen.RemoveMount(m.ContainerPath)
-		specgen.AddMount(m.ToOCI())
+		mnt := m.ToOCI()
+		if err := h.mount(&mnt); err != nil {
+			return errors.Wrap(err, "failed to add mount to OCI Spec")
+		}
+		specgen.RemoveMount(mnt.Destination)
+		specgen.AddMount(mnt)
 	}
 	for _, h := range e.Hooks {
 		switch h.HookName {
@@ -144,8 +162,8 @@ func (e *ContainerEdits) Validate() error {
 	return nil
 }
 
-// Append other another edits into this one. Returns newly allocated
-// edits if called with a nil receiver (and non-nil edits to append).
+// Append other edits into this one. If called with a nil reciever,
+// allocates and returns newly allocated edits.
 func (e *ContainerEdits) Append(o *ContainerEdits) *ContainerEdits {
 	if o == nil || o.ContainerEdits == nil {
 		return e
